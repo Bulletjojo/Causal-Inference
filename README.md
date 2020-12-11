@@ -1,5 +1,6 @@
 # Causal-Inference
-A research proposal which aims to investigate the impact of the trade war with China on the U.S economy by undertaking an investigation into the exact effect on the profitability of U.S corporations.
+The continuous trade war between the U.S and China dates back to the early 2000s when American leaders and economic scholars questioned the US trade deficit with China. The trade war’s impact remains largely controversial considering the level of media bias. A suitable hypothesis statement for the study can be that the effect of the trade war on U.S Corporations profitability is significant.
+Therefore, the objective of this research paper is to identify the effect of the trade war on the overall profitability of U.S corporations and the impact at the industry level. 
 ## The China-US trade war
 The main problem behind the Sino-US trade war is not just trade imbalances, but China's status as a non-market economy preceived as a "threat" by the United States. There is no doubt that the trade war has led to a decline in bilateral trade, which has adversely affected the export-oriented enterprises of both sides. 
 #### Traditional Approach
