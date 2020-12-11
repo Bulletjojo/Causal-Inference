@@ -1,0 +1,236 @@
+---
+title: "Causal Inference using DiD and Bayesian time series approach"
+author: "Guyi Zhou, Naman Shukla"
+date: "12/11/2020"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#import required libraries
+```{r message = FALSE}
+library(readxl)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(stargazer)
+```
+
+#import data
+```{r}
+Data= read_excel("Data.xlsx", sheet = "Combined")
+names(Data)
+```
+
+#Create a dummy variable to identify the group exposed to the treatment. Here countries with code USA were treated (=1). Other countries not envolved in the trade war between U.S & China are controlled for (=0).
+
+```{r message = FALSE}
+table(`Current ISO Country Code - Incorporation`)
+Data$USA = ifelse(Data$`Current ISO Country Code - Incorporation` =="USA", 1, 0)
+Data$Post = ifelse(Data$`Data Date` > "2018-07-06", 1, 0)
+table(Data$USA)
+```
+
+#Create subset data for each control regions
+```{r message = FALSE}
+ausdata=subset(Data,Data$`Current ISO Country Code - Incorporation` =="USA" |Data$`Current ISO Country Code - Incorporation` =="AUS")
+twdata=subset(Data,Data$`Current ISO Country Code - Incorporation` =="USA" |Data$`Current ISO Country Code - Incorporation` =="TWN")
+kordata=subset(Data,Data$`Current ISO Country Code - Incorporation` =="USA" |Data$`Current ISO Country Code - Incorporation` =="KOR")
+usadata=subset(Data,Data$`Current ISO Country Code - Incorporation` =="USA")
+ausonly=subset(Data,Data$`Current ISO Country Code - Incorporation`  =="AUS")
+```
+
+#check length of dataframes if needed
+```{r}
+#length(unique(Data$`Global Company Key`[Data$`Current ISO Country Code - Incorporation` =="AUS"]))
+
+#length(unique(Data$`Global Company Key`[Data$`Current ISO Country Code - Incorporation` =="TWN"]))
+
+#length(unique(Data$`Global Company Key`[Data$`Current ISO Country Code - Incorporation` =="KOR"]))
+
+#length(unique(Data$`Global Company Key`[Data$`Current ISO Country Code - Incorporation` =="USA"]))
+```
+
+#Linear Regression Model
+```{r}
+model=lm(ROA~Post,usadata)
+summary(model)
+stargazer(model, type='text')
+```
+
+# Descriptive Analysis and Parallel Trend Check
+```{r message = FALSE}
+
+parallelroe=function(Data){
+attach(Data)
+date1=as.character(`Data Date`)
+agg_data <- aggregate(ROE~ date1 +USA,Data,mean)
+agg_data$treatment <- as.factor(agg_data$USA)
+agg_data$date1 <- ymd(agg_data$date1 )
+
+# Basic line plot with points
+library(ggplot2)
+ggplot(data=agg_data, aes(x=date1, y=ROE, group=treatment)) + geom_line(aes(linetype=treatment, color=treatment))+geom_point(aes(color=treatment))+theme(legend.position="top")+
+ geom_vline(xintercept = as.numeric(as.Date("2018-07-06")))}
+
+parallelroa=function(Data){
+attach(Data)
+date1=as.character(`Data Date`)
+agg_data <- aggregate(ROA~ date1 +USA,Data,mean)
+agg_data$treatment <- as.factor(agg_data$USA)
+agg_data$date1 <- ymd(agg_data$date1 )
+
+# Basic line plot with points
+library(ggplot2)
+ggplot(data=agg_data, aes(x=date1, y=ROA, group=treatment)) + geom_line(aes(linetype=treatment, color=treatment))+geom_point(aes(color=treatment))+theme(legend.position="top")+
+ geom_vline(xintercept = as.numeric(as.Date("2018-07-06")))}
+
+parallelgpm=function(Data){
+attach(Data)
+date1=as.character(`Data Date`)
+agg_data <- aggregate(GPM~ date1 +USA,Data,mean)
+agg_data$treatment <- as.factor(agg_data$USA)
+agg_data$date1 <- ymd(agg_data$date1 )
+
+# Basic line plot with points
+library(ggplot2)
+ggplot(data=agg_data, aes(x=date1, y=GPM, group=treatment)) + geom_line(aes(linetype=treatment, color=treatment))+geom_point(aes(color=treatment))+theme(legend.position="top")+
+ geom_vline(xintercept = as.numeric(as.Date("2018-07-06")))}
+
+```
+
+#Check the parallel trend for Control Group (Australia,Taiwan & Korea )
+```{r message = FALSE}
+parallelroa(Data)
+parallelroe(Data)
+parallelgpm(Data)
+par(mfrow=c(2,2))
+```
+
+#Check the parallel trend for Control Group (Australia )
+```{r message = FALSE}
+parallelroa(ausdata)
+parallelroe(ausdata)
+parallelgpm(ausdata)
+```
+
+#Check the parallel trend for Control Group (Taiwan )
+```{r message = FALSE}
+parallelroa(twdata)
+parallelroe(twdata)
+parallelgpm(twdata)
+```
+
+#Check the parallel trend for Control Group (Korea)
+```{r message = FALSE}
+parallelroa(kordata)
+parallelroe(kordata)
+parallelgpm(kordata)
+```
+
+# Differnece in Difference Model
+Create an interaction between time and traedwar, which is the difference. 
+```{r message = FALSE}
+attach(ausdata)
+model=lm(ROA~USA*Post,ausdata)
+summary(model)
+stargazer(model, type='text')
+```
+
+#DiD at Industry level 
+```{r message = FALSE}
+attach(ausdata)
+unique(`GIC Sectors`)
+industry.ROA=function(a){
+  data1=subset(ausdata,`GIC Sectors`==a)
+  model=lm(ROA~USA*Post,data1)
+  return(stargazer(model, type='text'))
+}
+
+```
+
+```{r message = FALSE}
+attach(ausdata)
+industry.ROA(25)#Consumer Discretionary
+industry.ROA(45)#Information Technology
+industry.ROA(30)#Consumer Staples
+industry.ROA(35)#Health Care
+industry.ROA(15)#Materials
+industry.ROA(10)#Energy
+industry.ROA(20)#Industrials
+industry.ROA(50)#Communication Services
+industry.ROA(40)#Financials
+industry.ROA(55)#Utilities
+industry.ROA(60)#Real Estate
+```
+
+#fitting bayesian model to address limiations of DiD approach as discussed in Read.md.
+
+```{r}
+#create time points
+time.points<-seq.Date(as.Date("2016-03-31"),by = "quarter", length.out=16)
+```
+
+```{r}
+#declare time series variables
+US_ROA <-ts(usadata$ROA)
+Control_ROA <-ts(ausonly$ROA)
+
+#bind data in one dataframe
+data <-zoo(cbind(US_ROA,Control_ROA),time.points)
+```
+
+
+#import CI package
+```{r}
+library(CausalImpact)
+```
+
+```{r}
+#define intervention period here
+pre.period <-as.Date(c("2016-03-31","2018-07-31"))
+post.period <-as.Date(c("2018-08-01","2019-12-31"))
+```
+
+```{r}
+#fit the causal impact model based on bayesian time series approach
+impact_overall <-CausalImpact(data, pre.period, post.period)
+plot(impact_overall)
+summary(impact_overall)
+```
+
+#function to wrangle data to measure impact by industries.
+```{r}
+industry.ROA_CI=function(a){
+  data1 = filter(usadata, usadata$'GIC Sectors' == a)
+  data_ctrl = filter(ausonly, ausonly$'GIC Sectors' == a)
+  US_GIC_ROA <-ts(data1$ROA)
+  US_Control_ROA <-ts(data_ctrl$ROA)
+  data_sector <-na.trim(zoo(cbind(US_GIC_ROA,US_Control_ROA),time.points))
+  impact <-CausalImpact(data_sector, pre.period, post.period)
+  summary(impact)
+  return(plot(impact))
+}
+```
+
+
+```{r}
+industry.ROA_CI(25)#Consumer Discretionary
+industry.ROA_CI(45)#Information Technology
+industry.ROA_CI(30)#Consumer Staples
+industry.ROA_CI(35)#Health Care
+industry.ROA_CI(15)#Materials
+industry.ROA_CI(10)#Energy
+industry.ROA_CI(20)#Industrials
+industry.ROA_CI(50)#Communication Services
+industry.ROA_CI(40)#Financials
+industry.ROA_CI(55)#Utilities
+industry.ROA_CI(60)#Real Estate
+```
+
+
